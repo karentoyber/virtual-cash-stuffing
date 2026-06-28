@@ -276,11 +276,11 @@ export async function createBucket(input: {
   revalidatePath('/')
 }
 
-// Move money between the envelope and its funding account, like a transfer.
-// A positive `delta` stuffs cash into the envelope (account balance goes down,
-// saved goes up). A negative `delta` takes cash back out (account balance goes
-// up, saved goes down). Net worth is unchanged because the envelope's saved
-// balance counts as an asset.
+// Reserve (or release) cash within the envelope. This does NOT move money out
+// of the funding account — the cash stays in the account and is only visually
+// pooled/earmarked so the user knows not to spend it. A positive `delta`
+// stuffs more cash into the envelope; a negative `delta` releases it back.
+// Net worth is unchanged because the money never left the account.
 export async function stuffBucket(id: number, delta: number) {
   const userId = await getUserId()
   const [b] = await db
@@ -289,7 +289,7 @@ export async function stuffBucket(id: number, delta: number) {
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
   if (!b) return
 
-  // Clamp so we never take out more than is saved.
+  // Clamp so we never release more than is currently reserved.
   const current = Number(b.saved)
   const applied = delta < 0 ? Math.max(delta, -current) : delta
   const next = current + applied
@@ -299,47 +299,13 @@ export async function stuffBucket(id: number, delta: number) {
     .set({ saved: next.toFixed(2) })
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
 
-  // Mirror the movement on the funding account (opposite direction).
-  if (b.accountId) {
-    const [acc] = await db
-      .select()
-      .from(accounts)
-      .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
-    if (acc) {
-      const accNext = Number(acc.balance) - applied
-      await db
-        .update(accounts)
-        .set({ balance: accNext.toFixed(2), updatedAt: new Date() })
-        .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
-    }
-  }
   revalidatePath('/')
 }
 
 export async function deleteBucket(id: number) {
   const userId = await getUserId()
-  const [b] = await db
-    .select()
-    .from(buckets)
-    .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
-  if (!b) return
-
-  // Return any stuffed cash to the funding account so net worth is preserved.
-  const saved = Number(b.saved)
-  if (b.accountId && saved > 0) {
-    const [acc] = await db
-      .select()
-      .from(accounts)
-      .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
-    if (acc) {
-      const accNext = Number(acc.balance) + saved
-      await db
-        .update(accounts)
-        .set({ balance: accNext.toFixed(2), updatedAt: new Date() })
-        .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
-    }
-  }
-
+  // Deleting an envelope simply un-reserves the cash; the money was always in
+  // the funding account, so balances and net worth are unaffected.
   await db
     .delete(buckets)
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))

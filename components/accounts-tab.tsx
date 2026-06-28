@@ -13,19 +13,42 @@ import { AccountDialog } from '@/components/account-dialog'
 import { RecentTransactions } from '@/components/recent-transactions'
 import { deleteAccount } from '@/app/actions/finance'
 import { formatCurrency } from '@/lib/format'
-import type { Account, Transaction } from '@/lib/types'
-import { MoreVertical, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
+import type { Account, Bucket, Transaction } from '@/lib/types'
+import {
+  Lock,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  Wallet,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 export function AccountsTab({
   accounts,
   transactions,
+  buckets,
 }: {
   accounts: Account[]
   transactions: Transaction[]
+  buckets: Bucket[]
 }) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Account | null>(null)
+
+  // Map each account to the envelopes it funds, so we can show what's reserved.
+  const stuffedByAccount = useMemo(() => {
+    const map = new Map<number, { name: string; saved: number }[]>()
+    for (const b of buckets) {
+      if (b.accountId == null) continue
+      const saved = Number(b.saved)
+      if (saved <= 0) continue
+      const list = map.get(b.accountId) ?? []
+      list.push({ name: b.name, saved })
+      map.set(b.accountId, list)
+    }
+    return map
+  }, [buckets])
 
   const grouped = useMemo(() => {
     const map = new Map<string, Account[]>()
@@ -95,6 +118,7 @@ export function AccountsTab({
                       <EnvelopeCard
                         key={a.id}
                         account={a}
+                        stuffed={stuffedByAccount.get(a.id) ?? []}
                         onEdit={() => openEdit(a)}
                         onDelete={() => handleDelete(a)}
                       />
@@ -120,10 +144,12 @@ export function AccountsTab({
 
 function EnvelopeCard({
   account,
+  stuffed,
   onEdit,
   onDelete,
 }: {
   account: Account
+  stuffed: { name: string; saved: number }[]
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -132,6 +158,10 @@ function EnvelopeCard({
   const limit = account.creditLimit ? Number(account.creditLimit) : 0
   const usedPct = limit > 0 ? Math.min(100, (balance / limit) * 100) : 0
   const danger = usedPct >= 80
+
+  const totalStuffed = stuffed.reduce((sum, s) => sum + s.saved, 0)
+  const available = balance - totalStuffed
+  const showStuffed = account.kind !== 'liability' && totalStuffed > 0
 
   return (
     <div className="group relative flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
@@ -188,6 +218,43 @@ function EnvelopeCard({
       >
         {formatCurrency(balance)}
       </p>
+
+      {showStuffed && (
+        <div className="mt-3 rounded-lg border border-dashed border-border bg-secondary/40 p-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1 font-medium text-muted-foreground">
+              <Lock className="size-3" />
+              Reserved in envelopes
+            </span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {formatCurrency(totalStuffed)}
+            </span>
+          </div>
+          <ul className="mt-1.5 flex flex-col gap-0.5">
+            {stuffed.map((s) => (
+              <li
+                key={s.name}
+                className="flex items-center justify-between text-xs text-muted-foreground"
+              >
+                <span className="truncate">{s.name}</span>
+                <span className="tabular-nums">{formatCurrency(s.saved)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-xs">
+            <span className="font-medium text-muted-foreground">
+              Free to spend
+            </span>
+            <span
+              className={`font-semibold tabular-nums ${
+                available < 0 ? 'text-negative' : 'text-primary'
+              }`}
+            >
+              {formatCurrency(available)}
+            </span>
+          </div>
+        </div>
+      )}
 
       {isCard && limit > 0 && (
         <div className="mt-3">

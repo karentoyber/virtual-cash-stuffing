@@ -126,7 +126,12 @@ export function EnvelopesTab({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {buckets.map((b) => (
-              <BucketCard key={b.id} bucket={b} accounts={accounts} />
+              <BucketCard
+                key={b.id}
+                bucket={b}
+                accounts={accounts}
+                buckets={buckets}
+              />
             ))}
           </div>
         )}
@@ -166,9 +171,11 @@ function Stat({
 function BucketCard({
   bucket,
   accounts,
+  buckets,
 }: {
   bucket: Bucket
   accounts: Account[]
+  buckets: Bucket[]
 }) {
   const saved = Number(bucket.saved)
   const target = Number(bucket.target)
@@ -178,7 +185,16 @@ function BucketCard({
   const [busy, setBusy] = useState(false)
 
   const fundingAccount = accounts.find((a) => a.id === bucket.accountId)
-  const available = fundingAccount ? Number(fundingAccount.balance) : null
+  // Cash stays in the account; "available to reserve" is the account balance
+  // minus everything already reserved across all of its envelopes.
+  const reservedOnAccount = fundingAccount
+    ? buckets
+        .filter((b) => b.accountId === fundingAccount.id)
+        .reduce((sum, b) => sum + Number(b.saved), 0)
+    : 0
+  const available = fundingAccount
+    ? Number(fundingAccount.balance) - reservedOnAccount
+    : null
 
   const move = async (direction: 1 | -1) => {
     const value = Number(amount)
@@ -187,7 +203,9 @@ function BucketCard({
       return
     }
     if (direction === 1 && available != null && value > available) {
-      toast.error(`${fundingAccount?.name} only has ${formatCurrency(available)}`)
+      toast.error(
+        `${fundingAccount?.name} only has ${formatCurrency(available)} free to reserve`,
+      )
       return
     }
     if (direction === -1 && value > saved) {
@@ -251,7 +269,8 @@ function BucketCard({
         {fundingAccount ? (
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Wallet className="size-3" />
-            {fundingAccount.name} · {formatCurrency(available ?? 0)} available
+            {fundingAccount.name} · {formatCurrency(available ?? 0)} free to
+            reserve
           </p>
         ) : (
           <p className="mt-1 text-xs text-muted-foreground">
