@@ -38,6 +38,52 @@ export const BUCKET_COLORS = [
   { name: 'Plum', value: 'oklch(0.5 0.1 350)' },
 ] as const
 
+// Common credit-card reward categories. Users can also type their own.
+export const REWARD_TAG_PRESETS = [
+  'Travel',
+  'Dining',
+  'Groceries',
+  'Gas',
+  'Online Shopping',
+  'Streaming',
+  'Transit',
+  'Drugstores',
+  'Flat Cashback',
+] as const
+
+// Parse a comma-separated reward tag string into a clean array.
+export function parseTags(value: string | null | undefined): string[] {
+  if (!value) return []
+  return value
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean)
+}
+
+// Add an ordinal suffix to a day-of-month number, e.g. 1 -> "1st", 22 -> "22nd".
+export function ordinal(day: number): string {
+  const j = day % 10
+  const k = day % 100
+  if (j === 1 && k !== 11) return `${day}st`
+  if (j === 2 && k !== 12) return `${day}nd`
+  if (j === 3 && k !== 13) return `${day}rd`
+  return `${day}th`
+}
+
+// Number of days until the next occurrence of a given day-of-month.
+// Returns 0 when the due day is today.
+export function daysUntilDueDay(day: number, now = new Date()): number {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let due = new Date(today.getFullYear(), today.getMonth(), day)
+  if (due < today) {
+    // Already passed this month — roll to next month (clamped to month length).
+    const nextMonth = today.getMonth() + 1
+    const lastDay = new Date(today.getFullYear(), nextMonth + 1, 0).getDate()
+    due = new Date(today.getFullYear(), nextMonth, Math.min(day, lastDay))
+  }
+  return Math.round((due.getTime() - today.getTime()) / 86400000)
+}
+
 export function frequencyLabel(freq: string) {
   switch (freq) {
     case 'weekly':

@@ -36,6 +36,8 @@ export async function createAccount(input: {
   kind: string
   balance: number
   creditLimit?: number | null
+  rewardTags?: string | null
+  paymentDueDay?: number | null
 }) {
   const userId = await getUserId()
   await db.insert(accounts).values({
@@ -46,6 +48,8 @@ export async function createAccount(input: {
     balance: input.balance.toFixed(2),
     creditLimit:
       input.creditLimit != null ? input.creditLimit.toFixed(2) : null,
+    rewardTags: input.rewardTags ?? null,
+    paymentDueDay: input.paymentDueDay ?? null,
   })
   revalidatePath('/')
 }
@@ -58,6 +62,8 @@ export async function updateAccount(
     kind: string
     balance: number
     creditLimit?: number | null
+    rewardTags?: string | null
+    paymentDueDay?: number | null
   },
 ) {
   const userId = await getUserId()
@@ -70,6 +76,8 @@ export async function updateAccount(
       balance: input.balance.toFixed(2),
       creditLimit:
         input.creditLimit != null ? input.creditLimit.toFixed(2) : null,
+      rewardTags: input.rewardTags ?? null,
+      paymentDueDay: input.paymentDueDay ?? null,
       updatedAt: new Date(),
     })
     .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))

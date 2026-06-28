@@ -65,7 +65,10 @@ export const verification = pgTable('verification', {
 
 // An account / envelope. `kind` is "asset" or "liability". `category` groups
 // accounts in the tracker (e.g. cash, savings, investments, credit_cards) and
-// is fully customizable. `creditLimit` is only used for credit cards.
+// is fully customizable. `creditLimit`, `rewardTags`, and `paymentDueDay` are
+// only used for credit cards. `rewardTags` is a comma-separated list of the
+// spending categories the card earns the best points/cashback on.
+// `paymentDueDay` is the day of the month (1-31) the payment is due.
 export const accounts = pgTable('accounts', {
   id: serial('id').primaryKey(),
   userId: text('userId').notNull(),
@@ -76,6 +79,8 @@ export const accounts = pgTable('accounts', {
     .notNull()
     .default('0'),
   creditLimit: numeric('creditLimit', { precision: 14, scale: 2 }),
+  rewardTags: text('rewardTags'),
+  paymentDueDay: integer('paymentDueDay'),
   sortOrder: integer('sortOrder').notNull().default(0),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),

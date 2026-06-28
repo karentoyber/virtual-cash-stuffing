@@ -12,13 +12,20 @@ import {
 import { AccountDialog } from '@/components/account-dialog'
 import { RecentTransactions } from '@/components/recent-transactions'
 import { deleteAccount } from '@/app/actions/finance'
-import { formatCurrency } from '@/lib/format'
+import {
+  formatCurrency,
+  parseTags,
+  ordinal,
+  daysUntilDueDay,
+} from '@/lib/format'
 import type { Account, Bucket, Transaction } from '@/lib/types'
 import {
+  CalendarClock,
   Lock,
   MoreVertical,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   Wallet,
 } from 'lucide-react'
@@ -163,6 +170,11 @@ function EnvelopeCard({
   const available = balance - totalStuffed
   const showStuffed = account.kind !== 'liability' && totalStuffed > 0
 
+  const tags = isCard ? parseTags(account.rewardTags) : []
+  const dueDay = isCard ? account.paymentDueDay : null
+  const daysToDue = dueDay ? daysUntilDueDay(dueDay) : null
+  const dueSoon = daysToDue != null && daysToDue <= 5
+
   return (
     <div className="group relative flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
       {/* Envelope flap accent */}
@@ -274,6 +286,46 @@ function EnvelopeCard({
             value={usedPct}
             className={danger ? '[&>div]:bg-negative' : '[&>div]:bg-accent'}
           />
+        </div>
+      )}
+
+      {dueDay != null && (
+        <div
+          className={`mt-3 flex items-center gap-1.5 text-xs font-medium ${
+            dueSoon ? 'text-negative' : 'text-muted-foreground'
+          }`}
+        >
+          <CalendarClock className="size-3.5" />
+          <span>
+            Pay by the {ordinal(dueDay)}
+            {daysToDue != null && (
+              <span className="font-normal">
+                {' · '}
+                {daysToDue === 0
+                  ? 'due today'
+                  : `in ${daysToDue} day${daysToDue === 1 ? '' : 's'}`}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {tags.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <Sparkles className="size-3.5" />
+            Best for points
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>

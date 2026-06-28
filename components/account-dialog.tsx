@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CATEGORY_PRESETS } from '@/lib/format'
+import { CATEGORY_PRESETS, REWARD_TAG_PRESETS, parseTags } from '@/lib/format'
 import { createAccount, updateAccount } from '@/app/actions/finance'
 import type { Account } from '@/lib/types'
 import { toast } from 'sonner'
@@ -39,6 +39,9 @@ export function AccountDialog({
   const [kind, setKind] = useState('asset')
   const [balance, setBalance] = useState('')
   const [creditLimit, setCreditLimit] = useState('')
+  const [rewardTags, setRewardTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
+  const [dueDay, setDueDay] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -50,8 +53,26 @@ export function AccountDialog({
       setCreditLimit(
         account?.creditLimit != null ? String(Number(account.creditLimit)) : '',
       )
+      setRewardTags(parseTags(account?.rewardTags))
+      setTagInput('')
+      setDueDay(account?.paymentDueDay != null ? String(account.paymentDueDay) : '')
     }
   }, [open, account])
+
+  const toggleTag = (tag: string) => {
+    setRewardTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    )
+  }
+
+  const addCustomTag = () => {
+    const tag = tagInput.trim()
+    if (!tag) return
+    if (!rewardTags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+      setRewardTags((prev) => [...prev, tag])
+    }
+    setTagInput('')
+  }
 
   const isCard = category === 'Credit Cards'
 
@@ -61,12 +82,16 @@ export function AccountDialog({
       return
     }
     setSaving(true)
+    const due = Number(dueDay)
     const payload = {
       name: name.trim(),
       category,
       kind: isCard ? 'liability' : kind,
       balance: Number(balance) || 0,
       creditLimit: isCard && creditLimit ? Number(creditLimit) : null,
+      rewardTags: isCard && rewardTags.length ? rewardTags.join(', ') : null,
+      paymentDueDay:
+        isCard && due >= 1 && due <= 31 ? Math.floor(due) : null,
     }
     try {
       if (editing && account) {
@@ -173,6 +198,103 @@ export function AccountDialog({
               </div>
             )}
           </div>
+
+          {isCard && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="acc-due">Payment due day</Label>
+                <Input
+                  id="acc-due"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={31}
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  placeholder="e.g. 15"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The day of the month your bill is due.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>Best for points</Label>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  Tag the spending categories this card earns the most on.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {REWARD_TAG_PRESETS.map((tag) => {
+                    const active = rewardTags.includes(tag)
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        aria-pressed={active}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          active
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    )
+                  })}
+                </div>
+                {/* Custom reward tags chosen by the user */}
+                {rewardTags.filter(
+                  (t) =>
+                    !REWARD_TAG_PRESETS.some(
+                      (p) => p.toLowerCase() === t.toLowerCase(),
+                    ),
+                ).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {rewardTags
+                      .filter(
+                        (t) =>
+                          !REWARD_TAG_PRESETS.some(
+                            (p) => p.toLowerCase() === t.toLowerCase(),
+                          ),
+                      )
+                      .map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          aria-pressed
+                          className="rounded-full border border-primary bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+                        >
+                          {tag} ×
+                        </button>
+                      ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addCustomTag()
+                      }
+                    }}
+                    placeholder="Add your own…"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addCustomTag}
+                    disabled={!tagInput.trim()}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter>
