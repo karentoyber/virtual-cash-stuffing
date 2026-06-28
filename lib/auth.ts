@@ -14,16 +14,26 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
-  trustedOrigins: [
-    ...(process.env.NODE_ENV === 'development'
-      ? ['http://localhost:3000']
-      : []),
-    ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
-    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-    ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
-      : []),
-  ],
+  trustedOrigins: (request) => {
+    const origins = [
+      // v0 preview iframe domains are dynamic, so trust them by pattern.
+      'https://*.vusercontent.net',
+      'https://*.v0.app',
+      'https://*.vercel.app',
+      ...(process.env.NODE_ENV === 'development'
+        ? ['http://localhost:3000']
+        : []),
+      ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
+      ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+      ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
+        : []),
+    ]
+    // Also trust the request's own origin so the preview always works.
+    const origin = request?.headers.get('origin')
+    if (origin && !origins.includes(origin)) origins.push(origin)
+    return origins
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
