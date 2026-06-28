@@ -1,0 +1,234 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { AccountDialog } from '@/components/account-dialog'
+import { RecentTransactions } from '@/components/recent-transactions'
+import { deleteAccount } from '@/app/actions/finance'
+import { formatCurrency } from '@/lib/format'
+import type { Account, Transaction } from '@/lib/types'
+import { MoreVertical, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
+import { toast } from 'sonner'
+
+export function AccountsTab({
+  accounts,
+  transactions,
+}: {
+  accounts: Account[]
+  transactions: Transaction[]
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<Account | null>(null)
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Account[]>()
+    for (const a of accounts) {
+      const list = map.get(a.category) ?? []
+      list.push(a)
+      map.set(a.category, list)
+    }
+    return Array.from(map.entries())
+  }, [accounts])
+
+  const openNew = () => {
+    setEditing(null)
+    setDialogOpen(true)
+  }
+  const openEdit = (a: Account) => {
+    setEditing(a)
+    setDialogOpen(true)
+  }
+  const handleDelete = async (a: Account) => {
+    try {
+      await deleteAccount(a.id)
+      toast.success(`Removed ${a.name}`)
+    } catch {
+      toast.error('Could not delete account')
+    }
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-xl font-semibold text-foreground">
+            Your accounts
+          </h2>
+          <Button variant="outline" size="sm" onClick={openNew} className="gap-1.5">
+            <Plus className="size-4" />
+            Add account
+          </Button>
+        </div>
+
+        {accounts.length === 0 ? (
+          <EmptyAccounts onAdd={openNew} />
+        ) : (
+          <div className="flex flex-col gap-6">
+            {grouped.map(([category, list]) => {
+              const subtotal = list.reduce(
+                (sum, a) =>
+                  sum +
+                  (a.kind === 'liability'
+                    ? -Number(a.balance)
+                    : Number(a.balance)),
+                0,
+              )
+              return (
+                <div key={category}>
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      {category}
+                    </h3>
+                    <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                      {formatCurrency(subtotal)}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {list.map((a) => (
+                      <EnvelopeCard
+                        key={a.id}
+                        account={a}
+                        onEdit={() => openEdit(a)}
+                        onDelete={() => handleDelete(a)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <RecentTransactions transactions={transactions} accounts={accounts} />
+
+      <AccountDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        account={editing}
+      />
+    </div>
+  )
+}
+
+function EnvelopeCard({
+  account,
+  onEdit,
+  onDelete,
+}: {
+  account: Account
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const balance = Number(account.balance)
+  const isCard = account.category === 'Credit Cards'
+  const limit = account.creditLimit ? Number(account.creditLimit) : 0
+  const usedPct = limit > 0 ? Math.min(100, (balance / limit) * 100) : 0
+  const danger = usedPct >= 80
+
+  return (
+    <div className="group relative flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+      {/* Envelope flap accent */}
+      <div
+        aria-hidden
+        className="absolute right-4 top-0 h-3 w-10"
+        style={{
+          clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+          background: account.kind === 'liability' ? 'var(--negative)' : 'var(--primary)',
+          opacity: 0.25,
+        }}
+      />
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{account.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {account.kind === 'liability' ? 'Liability' : 'Asset'}
+          </p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-muted-foreground"
+                aria-label={`Options for ${account.name}`}
+              />
+            }
+          >
+            <MoreVertical className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit} className="gap-2">
+              <Pencil className="size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="gap-2 text-destructive focus:text-destructive"
+            >
+              <Trash2 className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <p
+        className={`mt-3 font-serif text-2xl font-semibold tabular-nums ${
+          account.kind === 'liability' ? 'text-negative' : 'text-foreground'
+        }`}
+      >
+        {formatCurrency(balance)}
+      </p>
+
+      {isCard && limit > 0 && (
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              {formatCurrency(limit - balance)} available
+            </span>
+            <span
+              className={`font-medium tabular-nums ${
+                danger ? 'text-negative' : 'text-muted-foreground'
+              }`}
+            >
+              {usedPct.toFixed(0)}% used
+            </span>
+          </div>
+          <Progress
+            value={usedPct}
+            className={danger ? '[&>div]:bg-negative' : '[&>div]:bg-accent'}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 px-6 py-12 text-center">
+      <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-secondary text-primary">
+        <Wallet className="size-6" />
+      </div>
+      <h3 className="font-serif text-lg font-semibold text-foreground">
+        No envelopes yet
+      </h3>
+      <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+        Add your first account to start tracking your balances and net worth.
+      </p>
+      <Button onClick={onAdd} className="mt-4 gap-1.5">
+        <Plus className="size-4" />
+        Add your first account
+      </Button>
+    </div>
+  )
+}
