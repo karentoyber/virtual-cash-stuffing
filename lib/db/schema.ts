@@ -112,15 +112,32 @@ export const recurring = pgTable('recurring', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
-// A savings goal / envelope bucket for the budget tab.
+// A savings goal / envelope bucket. `accountId` is the funding account that
+// money is moved from when you "stuff cash" into the envelope (like a
+// transfer), so stuffing is net-worth-neutral.
 export const buckets = pgTable('buckets', {
   id: serial('id').primaryKey(),
   userId: text('userId').notNull(),
   name: text('name').notNull(),
+  accountId: integer('accountId'),
   target: numeric('target', { precision: 14, scale: 2 })
     .notNull()
     .default('0'),
   saved: numeric('saved', { precision: 14, scale: 2 }).notNull().default('0'),
+  color: text('color'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
+
+// A spending budget for a category. `period` is "monthly" or "weekly".
+// Spending is deducted live from transactions whose category matches.
+export const budgets = pgTable('budgets', {
+  id: serial('id').primaryKey(),
+  userId: text('userId').notNull(),
+  category: text('category').notNull(),
+  amount: numeric('amount', { precision: 14, scale: 2 })
+    .notNull()
+    .default('0'),
+  period: text('period').notNull().default('monthly'),
   color: text('color'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })

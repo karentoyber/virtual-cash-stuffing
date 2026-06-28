@@ -15,9 +15,16 @@ import { NetWorthHero } from '@/components/net-worth-hero'
 import { AccountsTab } from '@/components/accounts-tab'
 import { RecurringTab } from '@/components/recurring-tab'
 import { BudgetTab } from '@/components/budget-tab'
+import { EnvelopesTab } from '@/components/envelopes-tab'
 import { TransactionDialog } from '@/components/transaction-dialog'
 import { signOut } from '@/app/actions/auth'
-import type { Account, Transaction, Recurring, Bucket } from '@/lib/types'
+import type {
+  Account,
+  Transaction,
+  Recurring,
+  Bucket,
+  Budget,
+} from '@/lib/types'
 import { LogOut, Plus, User } from 'lucide-react'
 
 export function Dashboard({
@@ -26,12 +33,14 @@ export function Dashboard({
   transactions,
   recurring,
   buckets,
+  budgets,
 }: {
   userName: string
   accounts: Account[]
   transactions: Transaction[]
   recurring: Recurring[]
   buckets: Bucket[]
+  budgets: Budget[]
 }) {
   const router = useRouter()
   const [txOpen, setTxOpen] = useState(false)
@@ -44,8 +53,18 @@ export function Dashboard({
       if (a.kind === 'liability') liabilities += bal
       else assets += bal
     }
+    // Cash stuffed into envelopes is money pulled out of accounts but still
+    // owned, so it counts as an asset to keep stuffing net-worth-neutral.
+    const stuffed = buckets.reduce((sum, b) => sum + Number(b.saved), 0)
+    assets += stuffed
     return { assets, liabilities, netWorth: assets - liabilities }
-  }, [accounts])
+  }, [accounts, buckets])
+
+  // Existing budget categories power the transaction category suggestions.
+  const budgetCategories = useMemo(
+    () => Array.from(new Set(budgets.map((b) => b.category))),
+    [budgets],
+  )
 
   const handleSignOut = async () => {
     await signOut()
@@ -117,24 +136,30 @@ export function Dashboard({
         <Tabs defaultValue="accounts" className="mt-8">
           <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
             <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="envelopes">Envelopes</TabsTrigger>
             <TabsTrigger value="recurring">Recurring</TabsTrigger>
-            <TabsTrigger value="budget">Envelopes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="accounts" className="mt-6">
             <AccountsTab accounts={accounts} transactions={transactions} />
           </TabsContent>
 
-          <TabsContent value="recurring" className="mt-6">
-            <RecurringTab recurring={recurring} accounts={accounts} />
+          <TabsContent value="budget" className="mt-6">
+            <BudgetTab budgets={budgets} transactions={transactions} />
           </TabsContent>
 
-          <TabsContent value="budget" className="mt-6">
-            <BudgetTab
+          <TabsContent value="envelopes" className="mt-6">
+            <EnvelopesTab
               buckets={buckets}
+              accounts={accounts}
               recurring={recurring}
               netWorth={netWorth}
             />
+          </TabsContent>
+
+          <TabsContent value="recurring" className="mt-6">
+            <RecurringTab recurring={recurring} accounts={accounts} />
           </TabsContent>
         </Tabs>
       </main>
@@ -143,6 +168,7 @@ export function Dashboard({
         open={txOpen}
         onOpenChange={setTxOpen}
         accounts={accounts}
+        categories={budgetCategories}
       />
     </div>
   )

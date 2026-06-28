@@ -65,3 +65,42 @@ export function monthlyEquivalent(amount: number, frequency: string) {
       return amount
   }
 }
+
+export type Period = 'monthly' | 'weekly'
+
+export const PERIOD_LABEL: Record<Period, string> = {
+  monthly: 'This month',
+  weekly: 'This week',
+}
+
+// Start of the current period window. Weeks start on Sunday.
+export function periodStart(period: Period, now = new Date()): Date {
+  if (period === 'weekly') {
+    const d = new Date(now)
+    d.setHours(0, 0, 0, 0)
+    d.setDate(d.getDate() - d.getDay())
+    return d
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+}
+
+// Total spent (outflow) for a category within the current period window.
+// Categories are matched case-insensitively.
+export function spentForCategory(
+  category: string,
+  period: Period,
+  transactions: { type: string; amount: string; category: string | null; date: Date | string }[],
+  now = new Date(),
+): number {
+  const start = periodStart(period, now)
+  const cat = category.trim().toLowerCase()
+  let total = 0
+  for (const t of transactions) {
+    if (t.type !== 'outflow') continue
+    if (!t.category || t.category.trim().toLowerCase() !== cat) continue
+    const d = typeof t.date === 'string' ? new Date(t.date) : t.date
+    if (d < start) continue
+    total += Number(t.amount)
+  }
+  return total
+}
