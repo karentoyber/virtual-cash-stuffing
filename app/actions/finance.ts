@@ -2,7 +2,13 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { accounts, transactions, recurring, buckets } from '@/lib/db/schema'
+import {
+  accounts,
+  transactions,
+  recurring,
+  buckets,
+  budgets,
+} from '@/lib/db/schema'
 import { and, asc, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
@@ -256,18 +262,25 @@ export async function getBuckets() {
 export async function createBucket(input: {
   name: string
   target: number
+  accountId?: number | null
   color?: string | null
 }) {
   const userId = await getUserId()
   await db.insert(buckets).values({
     userId,
     name: input.name,
+    accountId: input.accountId ?? null,
     target: input.target.toFixed(2),
     color: input.color ?? null,
   })
   revalidatePath('/')
 }
 
+// Move money between the envelope and its funding account, like a transfer.
+// A positive `delta` stuffs cash into the envelope (account balance goes down,
+// saved goes up). A negative `delta` takes cash back out (account balance goes
+// up, saved goes down). Net worth is unchanged because the envelope's saved
+// balance counts as an asset.
 export async function stuffBucket(id: number, delta: number) {
   const userId = await getUserId()
   const [b] = await db
@@ -275,18 +288,118 @@ export async function stuffBucket(id: number, delta: number) {
     .from(buckets)
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
   if (!b) return
-  const next = Math.max(0, Number(b.saved) + delta)
+
+  // Clamp so we never take out more than is saved.
+  const current = Number(b.saved)
+  const applied = delta < 0 ? Math.max(delta, -current) : delta
+  const next = current + applied
+
   await db
     .update(buckets)
     .set({ saved: next.toFixed(2) })
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
+
+  // Mirror the movement on the funding account (opposite direction).
+  if (b.accountId) {
+    const [acc] = await db
+      .select()
+      .from(accounts)
+      .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
+    if (acc) {
+      const accNext = Number(acc.balance) - applied
+      await db
+        .update(accounts)
+        .set({ balance: accNext.toFixed(2), updatedAt: new Date() })
+        .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
+    }
+  }
   revalidatePath('/')
 }
 
 export async function deleteBucket(id: number) {
   const userId = await getUserId()
+  const [b] = await db
+    .select()
+    .from(buckets)
+    .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
+  if (!b) return
+
+  // Return any stuffed cash to the funding account so net worth is preserved.
+  const saved = Number(b.saved)
+  if (b.accountId && saved > 0) {
+    const [acc] = await db
+      .select()
+      .from(accounts)
+      .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
+    if (acc) {
+      const accNext = Number(acc.balance) + saved
+      await db
+        .update(accounts)
+        .set({ balance: accNext.toFixed(2), updatedAt: new Date() })
+        .where(and(eq(accounts.id, b.accountId), eq(accounts.userId, userId)))
+    }
+  }
+
   await db
     .delete(buckets)
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
+  revalidatePath('/')
+}
+
+/* ------------------------------ Budgets ----------------------------- */
+
+export async function getBudgets() {
+  const userId = await getUserId()
+  return db
+    .select()
+    .from(budgets)
+    .where(eq(budgets.userId, userId))
+    .orderBy(asc(budgets.id))
+}
+
+export async function createBudget(input: {
+  category: string
+  amount: number
+  period: 'monthly' | 'weekly'
+  color?: string | null
+}) {
+  const userId = await getUserId()
+  await db.insert(budgets).values({
+    userId,
+    category: input.category,
+    amount: input.amount.toFixed(2),
+    period: input.period,
+    color: input.color ?? null,
+  })
+  revalidatePath('/')
+}
+
+export async function updateBudget(
+  id: number,
+  input: {
+    category: string
+    amount: number
+    period: 'monthly' | 'weekly'
+    color?: string | null
+  },
+) {
+  const userId = await getUserId()
+  await db
+    .update(budgets)
+    .set({
+      category: input.category,
+      amount: input.amount.toFixed(2),
+      period: input.period,
+      color: input.color ?? null,
+    })
+    .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+  revalidatePath('/')
+}
+
+export async function deleteBudget(id: number) {
+  const userId = await getUserId()
+  await db
+    .delete(budgets)
+    .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
   revalidatePath('/')
 }

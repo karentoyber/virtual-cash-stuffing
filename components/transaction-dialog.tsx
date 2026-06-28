@@ -35,10 +35,12 @@ export function TransactionDialog({
   open,
   onOpenChange,
   accounts,
+  categories = [],
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   accounts: Account[]
+  categories?: string[]
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const [type, setType] = useState<TxType>('outflow')
@@ -194,10 +196,23 @@ export function TransactionDialog({
                   <Label htmlFor="tx-cat">Category</Label>
                   <Input
                     id="tx-cat"
+                    list="tx-category-options"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     placeholder="e.g. Groceries"
                   />
+                  {categories.length > 0 && (
+                    <datalist id="tx-category-options">
+                      {categories.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  )}
+                  {type === 'outflow' && categories.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Match a budget category to deduct from it.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -6,6 +6,7 @@ import {
   getTransactions,
   getRecurring,
   getBuckets,
+  getBudgets,
 } from '@/app/actions/finance'
 import { Dashboard } from '@/components/dashboard'
 
@@ -13,12 +14,15 @@ export default async function HomePage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) redirect('/sign-in')
 
-  const [accounts, transactions, recurring, buckets] = await Promise.all([
-    getAccounts(),
-    getTransactions(),
-    getRecurring(),
-    getBuckets(),
-  ])
+  const [accounts, transactions, recurring, buckets, budgets] =
+    await Promise.all([
+      getAccounts(),
+      // Fetch a wide window so per-category budget math is accurate.
+      getTransactions(500),
+      getRecurring(),
+      getBuckets(),
+      getBudgets(),
+    ])
 
   return (
     <Dashboard
@@ -27,6 +31,7 @@ export default async function HomePage() {
       transactions={transactions}
       recurring={recurring}
       buckets={buckets}
+      budgets={budgets}
     />
   )
 }
