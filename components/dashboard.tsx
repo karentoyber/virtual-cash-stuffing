@@ -53,12 +53,10 @@ export function Dashboard({
       if (a.kind === 'liability') liabilities += bal
       else assets += bal
     }
-    // Cash stuffed into envelopes is money pulled out of accounts but still
-    // owned, so it counts as an asset to keep stuffing net-worth-neutral.
-    const stuffed = buckets.reduce((sum, b) => sum + Number(b.saved), 0)
-    assets += stuffed
+    // Envelopes only reserve money that already lives in the accounts, so they
+    // do not add to net worth — the account balances already include it.
     return { assets, liabilities, netWorth: assets - liabilities }
-  }, [accounts, buckets])
+  }, [accounts])
 
   // Existing budget categories power the transaction category suggestions.
   const budgetCategories = useMemo(
@@ -142,7 +140,11 @@ export function Dashboard({
           </TabsList>
 
           <TabsContent value="accounts" className="mt-6">
-            <AccountsTab accounts={accounts} transactions={transactions} />
+            <AccountsTab
+              accounts={accounts}
+              transactions={transactions}
+              buckets={buckets}
+            />
           </TabsContent>
 
           <TabsContent value="budget" className="mt-6">
