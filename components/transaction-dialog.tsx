@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -23,12 +23,13 @@ import { createTransaction } from '@/app/actions/finance'
 import type { Account } from '@/lib/types'
 import { toast } from 'sonner'
 
-type TxType = 'inflow' | 'outflow' | 'transfer'
+type TxType = 'inflow' | 'outflow' | 'transfer' | 'payment'
 
 const TYPES: { value: TxType; label: string }[] = [
   { value: 'outflow', label: 'Expense' },
   { value: 'inflow', label: 'Income' },
   { value: 'transfer', label: 'Transfer' },
+  { value: 'payment', label: 'Pay card' },
 ]
 
 export function TransactionDialog({
