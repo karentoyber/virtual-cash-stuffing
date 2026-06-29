@@ -107,7 +107,7 @@ export async function getTransactions(limit = 50) {
 export async function createTransaction(input: {
   accountId: number
   toAccountId?: number | null
-  type: 'inflow' | 'outflow' | 'transfer'
+  type: 'inflow' | 'outflow' | 'transfer' | 'payment'
   amount: number
   category?: string | null
   description?: string | null
@@ -157,7 +157,7 @@ export async function deleteTransaction(id: number) {
     userId,
     accountId: tx.accountId,
     toAccountId: tx.toAccountId,
-    type: tx.type as 'inflow' | 'outflow' | 'transfer',
+    type: tx.type as 'inflow' | 'outflow' | 'transfer' | 'payment',
     amount: -Number(tx.amount),
   })
 
@@ -179,7 +179,7 @@ async function applyToBalances({
   userId: string
   accountId: number
   toAccountId: number | null
-  type: 'inflow' | 'outflow' | 'transfer'
+  type: 'inflow' | 'outflow' | 'transfer' | 'payment'
   amount: number
 }) {
   const adjust = async (id: number, delta: number) => {
@@ -202,6 +202,11 @@ async function applyToBalances({
   } else if (type === 'transfer' && toAccountId) {
     await adjust(accountId, -amount)
     await adjust(toAccountId, amount)
+  } else if (type === 'payment' && toAccountId) {
+    // Paying off a card: cash leaves the asset account and the card's owed
+    // balance (a liability) shrinks by the same amount. Net worth is unchanged.
+    await adjust(accountId, -amount)
+    await adjust(toAccountId, -amount)
   }
 }
 
