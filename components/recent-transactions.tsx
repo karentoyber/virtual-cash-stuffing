@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { deleteTransaction } from '@/app/actions/finance'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency, formatDate, periodStart } from '@/lib/format'
 import type { Account, Transaction } from '@/lib/types'
 import { ArrowRight, Receipt, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,6 +16,13 @@ export function RecentTransactions({
 }) {
   const nameFor = (id: number | null) =>
     accounts.find((a) => a.id === id)?.name ?? 'Unknown'
+
+  // Only show transactions from the current Sunday-to-Sunday week.
+  const weekStart = periodStart('weekly')
+  const weekTransactions = transactions.filter((t) => {
+    const d = typeof t.date === 'string' ? new Date(t.date) : t.date
+    return d >= weekStart
+  })
 
   const handleDelete = async (id: number) => {
     try {
@@ -33,13 +40,13 @@ export function RecentTransactions({
         Recent activity
       </h2>
 
-      {transactions.length === 0 ? (
+      {weekTransactions.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No transactions yet. Add one to see it here.
+          No transactions this week yet. Add one to see it here.
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
-          {transactions.map((t) => {
+          {weekTransactions.map((t) => {
             const amount = Number(t.amount)
             const isInflow = t.type === 'inflow'
             const isTransfer = t.type === 'transfer'

@@ -181,8 +181,10 @@ function BucketCard({
   const target = Number(bucket.target)
   const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0
   const color = bucket.color ?? 'var(--primary)'
-  const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Amount each arrow press adds to or removes from the envelope.
+  const STEP = 10
 
   const fundingAccount = accounts.find((a) => a.id === bucket.accountId)
   // Cash stays in the account; "available to reserve" is the account balance
@@ -197,11 +199,7 @@ function BucketCard({
     : null
 
   const move = async (direction: 1 | -1) => {
-    const value = Number(amount)
-    if (!value || value <= 0) {
-      toast.error('Enter an amount first')
-      return
-    }
+    const value = STEP
     if (direction === 1 && available != null && value > available) {
       toast.error(
         `${fundingAccount?.name} only has ${formatCurrency(available)} free to reserve`,
@@ -215,7 +213,6 @@ function BucketCard({
     setBusy(true)
     try {
       await stuffBucket(bucket.id, direction * value)
-      setAmount('')
       toast.success(
         direction === 1
           ? `Stuffed ${formatCurrency(value)} into ${bucket.name}`
@@ -296,34 +293,28 @@ function BucketCard({
         </p>
 
         <div className="mt-3 flex items-center gap-2">
-          <Input
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Amount"
-            className="h-9"
-            aria-label={`Amount to move for ${bucket.name}`}
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-9 shrink-0"
-            onClick={() => move(1)}
-            disabled={busy}
-            aria-label={`Stuff cash into ${bucket.name}`}
-          >
-            <Plus className="size-4" />
-          </Button>
           <Button
             variant="outline"
             size="icon"
             className="size-9 shrink-0"
             onClick={() => move(-1)}
             disabled={busy || saved <= 0}
-            aria-label={`Take cash out of ${bucket.name}`}
+            aria-label={`Remove ${formatCurrency(STEP)} from ${bucket.name}`}
           >
             <Minus className="size-4" />
+          </Button>
+          <span className="flex-1 text-center text-sm font-medium tabular-nums text-muted-foreground">
+            {formatCurrency(STEP)} per step
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0"
+            onClick={() => move(1)}
+            disabled={busy}
+            aria-label={`Add ${formatCurrency(STEP)} to ${bucket.name}`}
+          >
+            <Plus className="size-4" />
           </Button>
         </div>
       </div>

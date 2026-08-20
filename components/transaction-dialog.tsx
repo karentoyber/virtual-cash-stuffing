@@ -23,13 +23,12 @@ import { createTransaction } from '@/app/actions/finance'
 import type { Account } from '@/lib/types'
 import { toast } from 'sonner'
 
-type TxType = 'inflow' | 'outflow' | 'transfer' | 'payment'
+type TxType = 'inflow' | 'outflow' | 'transfer'
 
 const TYPES: { value: TxType; label: string }[] = [
   { value: 'outflow', label: 'Expense' },
   { value: 'inflow', label: 'Income' },
   { value: 'transfer', label: 'Transfer' },
-  { value: 'payment', label: 'Pay card' },
 ]
 
 export function TransactionDialog({

@@ -107,7 +107,7 @@ export async function getTransactions(limit = 50) {
 export async function createTransaction(input: {
   accountId: number
   toAccountId?: number | null
-  type: 'inflow' | 'outflow' | 'transfer' | 'payment'
+  type: 'inflow' | 'outflow' | 'transfer'
   amount: number
   category?: string | null
   description?: string | null
@@ -157,7 +157,7 @@ export async function deleteTransaction(id: number) {
     userId,
     accountId: tx.accountId,
     toAccountId: tx.toAccountId,
-    type: tx.type as 'inflow' | 'outflow' | 'transfer' | 'payment',
+    type: tx.type as 'inflow' | 'outflow' | 'transfer',
     amount: -Number(tx.amount),
   })
 
@@ -179,16 +179,24 @@ async function applyToBalances({
   userId: string
   accountId: number
   toAccountId: number | null
-  type: 'inflow' | 'outflow' | 'transfer' | 'payment'
+  type: 'inflow' | 'outflow' | 'transfer'
   amount: number
 }) {
-  const adjust = async (id: number, delta: number) => {
+  // `signedFlow` is money movement from the account's perspective:
+  //   > 0 = money flows INTO the account
+  //   < 0 = money flows OUT of the account
+  // For an asset the stored balance moves with the flow. For a liability
+  // (e.g. a credit card) the stored balance is the amount owed, so it moves
+  // opposite to the flow: money in pays down what's owed, money out (a charge)
+  // increases it.
+  const applyFlow = async (id: number, signedFlow: number) => {
     const [acc] = await db
       .select()
       .from(accounts)
       .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
     if (!acc) return
-    const next = Number(acc.balance) + delta
+    const effect = acc.kind === 'liability' ? -signedFlow : signedFlow
+    const next = Number(acc.balance) + effect
     await db
       .update(accounts)
       .set({ balance: next.toFixed(2), updatedAt: new Date() })
@@ -196,17 +204,17 @@ async function applyToBalances({
   }
 
   if (type === 'inflow') {
-    await adjust(accountId, amount)
+    // Income / refund: money into the account.
+    await applyFlow(accountId, amount)
   } else if (type === 'outflow') {
-    await adjust(accountId, -amount)
+    // Expense: money out of the account.
+    await applyFlow(accountId, -amount)
   } else if (type === 'transfer' && toAccountId) {
-    await adjust(accountId, -amount)
-    await adjust(toAccountId, amount)
-  } else if (type === 'payment' && toAccountId) {
-    // Paying off a card: cash leaves the asset account and the card's owed
-    // balance (a liability) shrinks by the same amount. Net worth is unchanged.
-    await adjust(accountId, -amount)
-    await adjust(toAccountId, -amount)
+    // Money leaves the source and arrives at the destination. A transfer from
+    // checking to a credit card lowers the checking balance and pays down the
+    // card's owed balance.
+    await applyFlow(accountId, -amount)
+    await applyFlow(toAccountId, amount)
   }
 }
 

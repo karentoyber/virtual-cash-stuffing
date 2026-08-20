@@ -14,16 +14,20 @@ import { RecentTransactions } from '@/components/recent-transactions'
 import { deleteAccount } from '@/app/actions/finance'
 import {
   formatCurrency,
+  formatDateTime,
   parseTags,
   ordinal,
   daysUntilDueDay,
+  periodStart,
 } from '@/lib/format'
 import type { Account, Bucket, Transaction } from '@/lib/types'
 import {
   CalendarClock,
+  Clock,
   Lock,
   MoreVertical,
   Pencil,
+  Percent,
   Plus,
   Sparkles,
   Trash2,
@@ -67,6 +71,41 @@ export function AccountsTab({
     return Array.from(map.entries())
   }, [accounts])
 
+  // Most recent change to any account balance / transaction. `updatedAt` is
+  // bumped whenever a balance moves, so the max reflects the last activity.
+  const lastUpdated = useMemo(() => {
+    let latest: Date | null = null
+    for (const a of accounts) {
+      const d = a.updatedAt
+        ? typeof a.updatedAt === 'string'
+          ? new Date(a.updatedAt)
+          : a.updatedAt
+        : null
+      if (d && (!latest || d > latest)) latest = d
+    }
+    return latest
+  }, [accounts])
+
+  // Total interest paid on credit cards this month. Any transaction on a
+  // credit-card account whose category or note is "Interest" counts.
+  const interestThisMonth = useMemo(() => {
+    const cardIds = new Set(
+      accounts.filter((a) => a.category === 'Credit Cards').map((a) => a.id),
+    )
+    if (cardIds.size === 0) return 0
+    const monthStart = periodStart('monthly')
+    let total = 0
+    for (const t of transactions) {
+      if (!cardIds.has(t.accountId)) continue
+      const label = (t.category ?? t.description ?? '').trim().toLowerCase()
+      if (label !== 'interest') continue
+      const d = typeof t.date === 'string' ? new Date(t.date) : t.date
+      if (d < monthStart) continue
+      total += Number(t.amount)
+    }
+    return total
+  }, [accounts, transactions])
+
   const openNew = () => {
     setEditing(null)
     setDialogOpen(true)
@@ -88,9 +127,17 @@ export function AccountsTab({
     <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">
-            Your accounts
-          </h2>
+          <div>
+            <h2 className="font-serif text-xl font-semibold text-foreground">
+              Your accounts
+            </h2>
+            {lastUpdated && (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                Last updated: {formatDateTime(lastUpdated)}
+              </p>
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={openNew} className="gap-1.5">
             <Plus className="size-4" />
             Add account
@@ -120,6 +167,17 @@ export function AccountsTab({
                       {formatCurrency(subtotal)}
                     </span>
                   </div>
+                  {category === 'Credit Cards' && (
+                    <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Percent className="size-3.5" />
+                        Interest paid this month
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums text-negative">
+                        {formatCurrency(interestThisMonth)}
+                      </span>
+                    </div>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     {list.map((a) => (
                       <EnvelopeCard
