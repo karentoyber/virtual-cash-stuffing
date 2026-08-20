@@ -64,6 +64,29 @@ export const REWARD_TAG_PRESETS = [
   'Flat Cashback',
 ] as const
 
+// Detect a Roth IRA / IRA account by its name, so we can offer the yearly
+// contribution tracker on those accounts.
+export function isIraAccount(name: string): boolean {
+  return /\b(roth|ira)\b/i.test(name)
+}
+
+// Known IRS Roth/Traditional IRA annual contribution limits (under age 50).
+// Used only as a friendly hint; unknown future years fall back to the most
+// recent known limit.
+export const IRA_CONTRIBUTION_LIMITS: Record<number, number> = {
+  2023: 6500,
+  2024: 7000,
+  2025: 7000,
+  2026: 7500,
+}
+
+export function iraLimitForYear(year: number): number {
+  if (IRA_CONTRIBUTION_LIMITS[year] != null) return IRA_CONTRIBUTION_LIMITS[year]
+  const knownYears = Object.keys(IRA_CONTRIBUTION_LIMITS).map(Number)
+  const latest = Math.max(...knownYears)
+  return IRA_CONTRIBUTION_LIMITS[latest]
+}
+
 // Parse a comma-separated reward tag string into a clean array.
 export function parseTags(value: string | null | undefined): string[] {
   if (!value) return []

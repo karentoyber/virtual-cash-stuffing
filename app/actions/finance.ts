@@ -8,6 +8,7 @@ import {
   recurring,
   buckets,
   budgets,
+  contributions,
 } from '@/lib/db/schema'
 import { and, asc, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
@@ -330,6 +331,78 @@ export async function deleteBucket(id: number) {
   await db
     .delete(buckets)
     .where(and(eq(buckets.id, id), eq(buckets.userId, userId)))
+  revalidatePath('/')
+}
+
+/* --------------------------- Contributions -------------------------- */
+
+export async function getContributions(accountId: number) {
+  const userId = await getUserId()
+  return db
+    .select()
+    .from(contributions)
+    .where(
+      and(
+        eq(contributions.accountId, accountId),
+        eq(contributions.userId, userId),
+      ),
+    )
+    .orderBy(asc(contributions.year))
+}
+
+// Replace all yearly contributions for an account and keep the account's
+// balance in sync with the running total. Called when the tracker closes.
+export async function saveContributions(
+  accountId: number,
+  entries: { year: number; amount: number }[],
+) {
+  const userId = await getUserId()
+
+  // Verify the account belongs to the user.
+  const [acc] = await db
+    .select()
+    .from(accounts)
+    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+  if (!acc) throw new Error('Account not found')
+
+  // Keep only valid, positive-year entries and de-dupe by year (last wins).
+  const byYear = new Map<number, number>()
+  for (const e of entries) {
+    if (!Number.isFinite(e.year) || e.year < 1900) continue
+    const amount = Number.isFinite(e.amount) && e.amount > 0 ? e.amount : 0
+    byYear.set(Math.floor(e.year), amount)
+  }
+
+  // Simplest reliable sync: clear existing rows, then insert the current set.
+  await db
+    .delete(contributions)
+    .where(
+      and(
+        eq(contributions.accountId, accountId),
+        eq(contributions.userId, userId),
+      ),
+    )
+
+  let total = 0
+  if (byYear.size > 0) {
+    const rows = Array.from(byYear.entries()).map(([year, amount]) => {
+      total += amount
+      return {
+        userId,
+        accountId,
+        year,
+        amount: amount.toFixed(2),
+      }
+    })
+    await db.insert(contributions).values(rows)
+  }
+
+  // Sync the account balance to the total contributed.
+  await db
+    .update(accounts)
+    .set({ balance: total.toFixed(2), updatedAt: new Date() })
+    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+
   revalidatePath('/')
 }
 

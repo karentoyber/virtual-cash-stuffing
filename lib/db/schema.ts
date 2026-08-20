@@ -133,6 +133,21 @@ export const buckets = pgTable('buckets', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
+// A yearly contribution to a retirement/investment account (e.g. a Roth IRA).
+// Each row is one year's total contribution for a given account. The account's
+// balance is kept in sync with the sum of its contributions.
+export const contributions = pgTable('contributions', {
+  id: serial('id').primaryKey(),
+  userId: text('userId').notNull(),
+  accountId: integer('accountId').notNull(),
+  year: integer('year').notNull(),
+  amount: numeric('amount', { precision: 14, scale: 2 })
+    .notNull()
+    .default('0'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
 // A spending budget for a category. `period` is "monthly" or "weekly".
 // Spending is deducted live from transactions whose category matches.
 export const budgets = pgTable('budgets', {
