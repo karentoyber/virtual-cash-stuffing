@@ -26,6 +26,7 @@ import type { Account, Bucket, Transaction } from '@/lib/types'
 import {
   CalendarClock,
   Clock,
+  Flame,
   Lock,
   MoreVertical,
   Pencil,
@@ -115,6 +116,24 @@ export function AccountsTab({
     return total
   }, [accounts, transactions])
 
+  // The credit card with the highest APR that still carries a balance — the
+  // one to prioritize paying off. Used to badge that card.
+  const highestAprCardId = useMemo(() => {
+    let bestId: number | null = null
+    let bestApr = -1
+    for (const a of accounts) {
+      if (a.category !== 'Credit Cards') continue
+      if (a.apr == null) continue
+      if (Number(a.balance) <= 0) continue
+      const apr = Number(a.apr)
+      if (apr > bestApr) {
+        bestApr = apr
+        bestId = a.id
+      }
+    }
+    return bestId
+  }, [accounts])
+
   const openNew = () => {
     setEditing(null)
     setDialogOpen(true)
@@ -197,6 +216,7 @@ export function AccountsTab({
                         key={a.id}
                         account={a}
                         stuffed={stuffedByAccount.get(a.id) ?? []}
+                        isHighestApr={a.id === highestAprCardId}
                         onEdit={() => openEdit(a)}
                         onDelete={() => handleDelete(a)}
                         onOpenIra={() => openIra(a)}
@@ -230,12 +250,14 @@ export function AccountsTab({
 function EnvelopeCard({
   account,
   stuffed,
+  isHighestApr,
   onEdit,
   onDelete,
   onOpenIra,
 }: {
   account: Account
   stuffed: { name: string; saved: number }[]
+  isHighestApr: boolean
   onEdit: () => void
   onDelete: () => void
   onOpenIra: () => void
@@ -244,6 +266,7 @@ function EnvelopeCard({
   const isCard = account.category === 'Credit Cards'
   const isIra = isIraAccount(account)
   const limit = account.creditLimit ? Number(account.creditLimit) : 0
+  const apr = account.apr != null ? Number(account.apr) : null
   const usedPct = limit > 0 ? Math.min(100, (balance / limit) * 100) : 0
   const danger = usedPct >= 80
 
@@ -331,6 +354,21 @@ function EnvelopeCard({
       >
         {formatCurrency(balance)}
       </p>
+
+      {isCard && apr != null && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+            <Percent className="size-3" />
+            {apr.toFixed(2)}% APR
+          </span>
+          {isHighestApr && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-negative/10 px-2 py-0.5 text-xs font-semibold text-negative">
+              <Flame className="size-3" />
+              Pay this first
+            </span>
+          )}
+        </div>
+      )}
 
       {isIra && (
         <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary">

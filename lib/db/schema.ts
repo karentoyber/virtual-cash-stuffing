@@ -79,6 +79,8 @@ export const accounts = pgTable('accounts', {
     .notNull()
     .default('0'),
   creditLimit: numeric('creditLimit', { precision: 14, scale: 2 }),
+  // Annual percentage rate for credit cards, stored as a percent (e.g. 24.99).
+  apr: numeric('apr', { precision: 6, scale: 2 }),
   rewardTags: text('rewardTags'),
   paymentDueDay: integer('paymentDueDay'),
   sortOrder: integer('sortOrder').notNull().default(0),

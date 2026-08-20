@@ -45,6 +45,7 @@ export function AccountDialog({
   const [kind, setKind] = useState('asset')
   const [balance, setBalance] = useState('')
   const [creditLimit, setCreditLimit] = useState('')
+  const [apr, setApr] = useState('')
   const [rewardTags, setRewardTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [dueDay, setDueDay] = useState('')
@@ -60,6 +61,7 @@ export function AccountDialog({
       setCreditLimit(
         account?.creditLimit != null ? String(Number(account.creditLimit)) : '',
       )
+      setApr(account?.apr != null ? String(Number(account.apr)) : '')
       const allTags = parseTags(account?.rewardTags)
       // The roth-ira marker lives in the same column as reward tags; keep it
       // out of the visible reward-tag chips and drive the toggle instead.
@@ -109,6 +111,7 @@ export function AccountDialog({
       kind: isCard ? 'liability' : kind,
       balance: Number(balance) || 0,
       creditLimit: isCard && creditLimit ? Number(creditLimit) : null,
+      apr: isCard && apr ? Number(apr) : null,
       rewardTags: storedTags,
       paymentDueDay:
         isCard && due >= 1 && due <= 31 ? Math.floor(due) : null,
@@ -264,21 +267,39 @@ export function AccountDialog({
 
           {isCard && (
             <>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="acc-due">Payment due day</Label>
-                <Input
-                  id="acc-due"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={31}
-                  value={dueDay}
-                  onChange={(e) => setDueDay(e.target.value)}
-                  placeholder="e.g. 15"
-                />
-                <p className="text-xs text-muted-foreground">
-                  The day of the month your bill is due.
-                </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="acc-apr">APR (%)</Label>
+                  <Input
+                    id="acc-apr"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    value={apr}
+                    onChange={(e) => setApr(e.target.value)}
+                    placeholder="e.g. 24.99"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pay highest-APR cards first.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="acc-due">Payment due day</Label>
+                  <Input
+                    id="acc-due"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={31}
+                    value={dueDay}
+                    onChange={(e) => setDueDay(e.target.value)}
+                    placeholder="e.g. 15"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The day your bill is due.
+                  </p>
+                </div>
               </div>
 
               <div className="flex flex-col gap-2">
