@@ -13,6 +13,7 @@ import {
 import { Toaster } from '@/components/ui/sonner'
 import { NetWorthHero } from '@/components/net-worth-hero'
 import { AccountsTab } from '@/components/accounts-tab'
+import { AnalyticsTab } from '@/components/analytics-tab'
 import { RecurringTab } from '@/components/recurring-tab'
 import { BudgetTab } from '@/components/budget-tab'
 import { EnvelopesTab } from '@/components/envelopes-tab'
@@ -134,6 +135,7 @@ export function Dashboard({
         <Tabs defaultValue="accounts" className="mt-8">
           <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
             <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="envelopes">Envelopes</TabsTrigger>
             <TabsTrigger value="recurring">Recurring</TabsTrigger>
@@ -145,6 +147,10 @@ export function Dashboard({
               transactions={transactions}
               buckets={buckets}
             />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-6">
+            <AnalyticsTab accounts={accounts} transactions={transactions} />
           </TabsContent>
 
           <TabsContent value="budget" className="mt-6">
