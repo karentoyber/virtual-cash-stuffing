@@ -19,7 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CATEGORY_PRESETS, REWARD_TAG_PRESETS, parseTags } from '@/lib/format'
+import {
+  CATEGORY_PRESETS,
+  REWARD_TAG_PRESETS,
+  ROTH_IRA_TAG,
+  parseTags,
+} from '@/lib/format'
+import { PiggyBank } from 'lucide-react'
 import { createAccount, updateAccount } from '@/app/actions/finance'
 import type { Account } from '@/lib/types'
 import { toast } from 'sonner'
@@ -42,6 +48,7 @@ export function AccountDialog({
   const [rewardTags, setRewardTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [dueDay, setDueDay] = useState('')
+  const [isRoth, setIsRoth] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -53,7 +60,11 @@ export function AccountDialog({
       setCreditLimit(
         account?.creditLimit != null ? String(Number(account.creditLimit)) : '',
       )
-      setRewardTags(parseTags(account?.rewardTags))
+      const allTags = parseTags(account?.rewardTags)
+      // The roth-ira marker lives in the same column as reward tags; keep it
+      // out of the visible reward-tag chips and drive the toggle instead.
+      setRewardTags(allTags.filter((t) => t.toLowerCase() !== ROTH_IRA_TAG))
+      setIsRoth(allTags.some((t) => t.toLowerCase() === ROTH_IRA_TAG))
       setTagInput('')
       setDueDay(account?.paymentDueDay != null ? String(account.paymentDueDay) : '')
     }
@@ -75,6 +86,7 @@ export function AccountDialog({
   }
 
   const isCard = category === 'Credit Cards'
+  const isInvestment = category === 'Investments'
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -83,13 +95,21 @@ export function AccountDialog({
     }
     setSaving(true)
     const due = Number(dueDay)
+    // Reward tags only apply to cards; the roth-ira marker only to
+    // Investments. Both share the `rewardTags` column.
+    let storedTags: string | null = null
+    if (isCard && rewardTags.length) {
+      storedTags = rewardTags.join(', ')
+    } else if (isInvestment && isRoth) {
+      storedTags = ROTH_IRA_TAG
+    }
     const payload = {
       name: name.trim(),
       category,
       kind: isCard ? 'liability' : kind,
       balance: Number(balance) || 0,
       creditLimit: isCard && creditLimit ? Number(creditLimit) : null,
-      rewardTags: isCard && rewardTags.length ? rewardTags.join(', ') : null,
+      rewardTags: storedTags,
       paymentDueDay:
         isCard && due >= 1 && due <= 31 ? Math.floor(due) : null,
     }
@@ -198,6 +218,49 @@ export function AccountDialog({
               </div>
             )}
           </div>
+
+          {isInvestment && (
+            <button
+              type="button"
+              onClick={() => setIsRoth((v) => !v)}
+              aria-pressed={isRoth}
+              className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
+                isRoth
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border bg-secondary/40 hover:bg-secondary'
+              }`}
+            >
+              <span
+                className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full ${
+                  isRoth
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-muted-foreground'
+                }`}
+              >
+                <PiggyBank className="size-4" />
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground">
+                  Roth IRA account
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Track contributions year by year. The account balance stays in
+                  sync with your total contributed.
+                </span>
+              </span>
+              <span
+                className={`ml-auto mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                  isRoth ? 'bg-primary' : 'bg-border'
+                }`}
+              >
+                <span
+                  className={`size-4 rounded-full bg-background transition-transform ${
+                    isRoth ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </span>
+            </button>
+          )}
 
           {isCard && (
             <>

@@ -91,8 +91,8 @@ export function AccountsTab({
     return latest
   }, [accounts])
 
-  // Total interest paid on credit cards this month. Any transaction on a
-  // credit-card account whose category or note is "Interest" counts.
+  // Total interest charged on credit cards this month. Any transaction on a
+  // credit-card account labeled "Interest charges" (category or note) counts.
   const interestThisMonth = useMemo(() => {
     const cardIds = new Set(
       accounts.filter((a) => a.category === 'Credit Cards').map((a) => a.id),
@@ -102,8 +102,12 @@ export function AccountsTab({
     let total = 0
     for (const t of transactions) {
       if (!cardIds.has(t.accountId)) continue
-      const label = (t.category ?? t.description ?? '').trim().toLowerCase()
-      if (label !== 'interest') continue
+      const category = (t.category ?? '').trim().toLowerCase()
+      const description = (t.description ?? '').trim().toLowerCase()
+      const isInterest =
+        category.includes('interest charge') ||
+        description.includes('interest charge')
+      if (!isInterest) continue
       const d = typeof t.date === 'string' ? new Date(t.date) : t.date
       if (d < monthStart) continue
       total += Number(t.amount)
@@ -180,7 +184,7 @@ export function AccountsTab({
                     <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2">
                       <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                         <Percent className="size-3.5" />
-                        Interest paid this month
+                        Interest charges this month
                       </span>
                       <span className="text-sm font-semibold tabular-nums text-negative">
                         {formatCurrency(interestThisMonth)}
@@ -238,7 +242,7 @@ function EnvelopeCard({
 }) {
   const balance = Number(account.balance)
   const isCard = account.category === 'Credit Cards'
-  const isIra = isIraAccount(account.name)
+  const isIra = isIraAccount(account)
   const limit = account.creditLimit ? Number(account.creditLimit) : 0
   const usedPct = limit > 0 ? Math.min(100, (balance / limit) * 100) : 0
   const danger = usedPct >= 80
