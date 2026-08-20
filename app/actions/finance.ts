@@ -37,6 +37,7 @@ export async function createAccount(input: {
   kind: string
   balance: number
   creditLimit?: number | null
+  apr?: number | null
   rewardTags?: string | null
   paymentDueDay?: number | null
 }) {
@@ -49,6 +50,7 @@ export async function createAccount(input: {
     balance: input.balance.toFixed(2),
     creditLimit:
       input.creditLimit != null ? input.creditLimit.toFixed(2) : null,
+    apr: input.apr != null ? input.apr.toFixed(2) : null,
     rewardTags: input.rewardTags ?? null,
     paymentDueDay: input.paymentDueDay ?? null,
   })
@@ -63,6 +65,7 @@ export async function updateAccount(
     kind: string
     balance: number
     creditLimit?: number | null
+    apr?: number | null
     rewardTags?: string | null
     paymentDueDay?: number | null
   },
@@ -77,6 +80,7 @@ export async function updateAccount(
       balance: input.balance.toFixed(2),
       creditLimit:
         input.creditLimit != null ? input.creditLimit.toFixed(2) : null,
+      apr: input.apr != null ? input.apr.toFixed(2) : null,
       rewardTags: input.rewardTags ?? null,
       paymentDueDay: input.paymentDueDay ?? null,
       updatedAt: new Date(),
