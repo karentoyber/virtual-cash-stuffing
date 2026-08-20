@@ -182,9 +182,10 @@ export function AnalyticsTab({
         .reduce((s, t) => s + Number(t.amount), 0),
     [current, accountById],
   )
-  const interestMonthly = useMemo(() => {
-    if (view !== 'yearly') return undefined
-    return getBuckets('yearly', range).map((b) => {
+  // Interest charges broken into buckets for the selected view:
+  // weekly -> per day, monthly -> per week, yearly -> per month.
+  const interestSeries = useMemo(() => {
+    return getBuckets(view, range).map((b) => {
       let v = 0
       for (const t of current) {
         if (!isInterestTx(t, accountById)) continue
@@ -194,6 +195,13 @@ export function AnalyticsTab({
       return { label: b.label, interest: v }
     })
   }, [view, range, current, accountById])
+
+  const interestSeriesHeading =
+    view === 'weekly'
+      ? 'Interest charges by day'
+      : view === 'monthly'
+        ? 'Interest charges by week'
+        : 'Interest charges by month'
 
   // Categories present this period, for the details dropdown.
   const detailCategories = useMemo(() => {
@@ -345,7 +353,12 @@ export function AnalyticsTab({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <FinancialBreakdown data={spending} />
-        <CreditCardInterest total={interestTotal} monthly={interestMonthly} />
+        <CreditCardInterest
+          total={interestTotal}
+          series={interestSeries}
+          seriesHeading={interestSeriesHeading}
+          periodLabel={range.label}
+        />
       </div>
 
       <TransactionDetails

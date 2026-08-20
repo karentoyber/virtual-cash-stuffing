@@ -8,37 +8,43 @@ import { Section, CurrencyTooltip } from './section'
 import { Percent } from 'lucide-react'
 
 const config: ChartConfig = {
-  interest: { label: 'Interest', color: 'var(--chart-2)' },
+  interest: { label: 'Interest charges', color: 'var(--chart-2)' },
 }
 
 export function CreditCardInterest({
   total,
-  monthly,
+  series,
+  seriesHeading,
+  periodLabel,
 }: {
   total: number
-  monthly?: { label: string; interest: number }[]
+  series?: { label: string; interest: number }[]
+  seriesHeading?: string
+  periodLabel?: string
 }) {
   return (
     <Section
       title="Credit Card Interest"
-      description="Interest paid on cards this period"
+      description="Interest charges on cards this period"
     >
       <div className="flex items-baseline gap-2">
         <Percent className="size-4 text-negative" />
         <span className="font-mono text-3xl font-semibold tabular-nums text-negative">
           {formatCurrency(total)}
         </span>
-        <span className="text-sm text-muted-foreground">total interest</span>
+        <span className="text-sm text-muted-foreground">
+          in interest charges{periodLabel ? ` · ${periodLabel}` : ''}
+        </span>
       </div>
 
-      {monthly && (
+      {series && series.length > 0 && (
         <div className="mt-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Interest by month
+            {seriesHeading ?? 'Interest charges'}
           </p>
-          {monthly.some((m) => m.interest > 0) ? (
+          {series.some((m) => m.interest > 0) ? (
             <ChartContainer config={config} className="h-40 w-full">
-              <BarChart data={monthly}>
+              <BarChart data={series}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis
                   dataKey="label"
@@ -56,7 +62,7 @@ export function CreditCardInterest({
             </ChartContainer>
           ) : (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              No interest recorded this year.
+              No interest charges recorded this period.
             </p>
           )}
         </div>

@@ -108,15 +108,21 @@ export function isCreditCard(account: Account | undefined): boolean {
   return account?.category === 'Credit Cards'
 }
 
-// A transaction on a credit-card account named/categorized "Interest".
+// A transaction on a credit-card account labeled "Interest charges" (via its
+// category or description). Matching is lenient so "Interest Charges",
+// "interest charge", etc. all count.
 export function isInterestTx(
   t: Transaction,
   accountById: Map<number, Account>,
 ): boolean {
   if (t.type !== 'outflow') return false
   if (!isCreditCard(accountById.get(t.accountId))) return false
-  const label = (t.category ?? t.description ?? '').trim().toLowerCase()
-  return label === 'interest'
+  const category = (t.category ?? '').trim().toLowerCase()
+  const description = (t.description ?? '').trim().toLowerCase()
+  return (
+    category.includes('interest charge') ||
+    description.includes('interest charge')
+  )
 }
 
 export interface Totals {
