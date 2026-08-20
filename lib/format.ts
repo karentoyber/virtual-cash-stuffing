@@ -16,6 +16,19 @@ export function formatDate(value: string | Date) {
   })
 }
 
+// Date + time, e.g. "Aug 20, 2026, 3:41 PM". Used for the accounts
+// "Last updated" stamp.
+export function formatDateTime(value: string | Date) {
+  const d = typeof value === 'string' ? new Date(value) : value
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 // Default account categories (fully customizable — users can type their own).
 export const CATEGORY_PRESETS = [
   'Cash',
