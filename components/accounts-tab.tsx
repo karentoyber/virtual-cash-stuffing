@@ -10,11 +10,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { AccountDialog } from '@/components/account-dialog'
+import { IraContributionsDialog } from '@/components/ira-contributions-dialog'
 import { RecentTransactions } from '@/components/recent-transactions'
 import { deleteAccount } from '@/app/actions/finance'
 import {
   formatCurrency,
   formatDateTime,
+  isIraAccount,
   parseTags,
   ordinal,
   daysUntilDueDay,
@@ -28,6 +30,7 @@ import {
   MoreVertical,
   Pencil,
   Percent,
+  PiggyBank,
   Plus,
   Sparkles,
   Trash2,
@@ -46,6 +49,8 @@ export function AccountsTab({
 }) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Account | null>(null)
+  const [iraOpen, setIraOpen] = useState(false)
+  const [iraAccount, setIraAccount] = useState<Account | null>(null)
 
   // Map each account to the envelopes it funds, so we can show what's reserved.
   const stuffedByAccount = useMemo(() => {
@@ -113,6 +118,10 @@ export function AccountsTab({
   const openEdit = (a: Account) => {
     setEditing(a)
     setDialogOpen(true)
+  }
+  const openIra = (a: Account) => {
+    setIraAccount(a)
+    setIraOpen(true)
   }
   const handleDelete = async (a: Account) => {
     try {
@@ -186,6 +195,7 @@ export function AccountsTab({
                         stuffed={stuffedByAccount.get(a.id) ?? []}
                         onEdit={() => openEdit(a)}
                         onDelete={() => handleDelete(a)}
+                        onOpenIra={() => openIra(a)}
                       />
                     ))}
                   </div>
@@ -203,6 +213,12 @@ export function AccountsTab({
         onOpenChange={setDialogOpen}
         account={editing}
       />
+
+      <IraContributionsDialog
+        open={iraOpen}
+        onOpenChange={setIraOpen}
+        account={iraAccount}
+      />
     </div>
   )
 }
@@ -212,14 +228,17 @@ function EnvelopeCard({
   stuffed,
   onEdit,
   onDelete,
+  onOpenIra,
 }: {
   account: Account
   stuffed: { name: string; saved: number }[]
   onEdit: () => void
   onDelete: () => void
+  onOpenIra: () => void
 }) {
   const balance = Number(account.balance)
   const isCard = account.category === 'Credit Cards'
+  const isIra = isIraAccount(account.name)
   const limit = account.creditLimit ? Number(account.creditLimit) : 0
   const usedPct = limit > 0 ? Math.min(100, (balance / limit) * 100) : 0
   const danger = usedPct >= 80
@@ -234,7 +253,25 @@ function EnvelopeCard({
   const dueSoon = daysToDue != null && daysToDue <= 5
 
   return (
-    <div className="group relative flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div
+      className={`group relative flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md ${
+        isIra ? 'cursor-pointer hover:border-primary/50' : ''
+      }`}
+      onClick={isIra ? onOpenIra : undefined}
+      role={isIra ? 'button' : undefined}
+      tabIndex={isIra ? 0 : undefined}
+      onKeyDown={
+        isIra
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onOpenIra()
+              }
+            }
+          : undefined
+      }
+      aria-label={isIra ? `Open ${account.name} contribution tracker` : undefined}
+    >
       {/* Envelope flap accent */}
       <div
         aria-hidden
@@ -252,6 +289,7 @@ function EnvelopeCard({
             {account.kind === 'liability' ? 'Liability' : 'Asset'}
           </p>
         </div>
+        <div onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -279,6 +317,7 @@ function EnvelopeCard({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       <p
@@ -288,6 +327,13 @@ function EnvelopeCard({
       >
         {formatCurrency(balance)}
       </p>
+
+      {isIra && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary">
+          <PiggyBank className="size-3.5" />
+          Tap to track yearly contributions
+        </p>
+      )}
 
       {showStuffed && (
         <div className="mt-3 rounded-lg border border-dashed border-border bg-secondary/40 p-2.5">
