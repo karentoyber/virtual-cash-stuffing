@@ -70,6 +70,14 @@ export function AnalyticsTab({
     return m
   }, [accounts])
 
+  // value -> label map so the Select trigger shows the right label before the
+  // popup mounts (Base UI needs this, otherwise it renders the raw value).
+  const accountItems = useMemo(() => {
+    const map: Record<string, string> = { [ALL]: 'All Accounts' }
+    for (const a of accounts) map[String(a.id)] = a.name
+    return map
+  }, [accounts])
+
   const changeView = (v: AnalyticsView) => {
     setView(v)
     setOffset(0)
@@ -298,11 +306,12 @@ export function AnalyticsTab({
         </div>
 
         <Select
+          items={accountItems}
           value={accountFilter}
           onValueChange={(v) => setAccountFilter(v ?? ALL)}
         >
           <SelectTrigger size="sm" aria-label="Filter by account">
-            <SelectValue />
+            <SelectValue placeholder="All accounts" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All Accounts</SelectItem>

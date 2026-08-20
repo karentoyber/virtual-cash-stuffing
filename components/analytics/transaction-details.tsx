@@ -59,6 +59,17 @@ export function TransactionDetails({
   const nameFor = (id: number | null) =>
     id == null ? '—' : (accountById.get(id)?.name ?? 'Unknown')
 
+  // value -> label maps so each Select trigger shows the label before the
+  // popup mounts (Base UI renders the raw value without this).
+  const categoryItems: Record<string, string> = {
+    [ALL]: 'All categories',
+    ...Object.fromEntries(categories.map((c) => [c, c])),
+  }
+  const accountItems: Record<string, string> = {
+    [ALL]: 'All accounts',
+    ...Object.fromEntries(accounts.map((a) => [String(a.id), a.name])),
+  }
+
   const hasFilters =
     filters.account !== ALL ||
     filters.category !== ALL ||
@@ -80,11 +91,12 @@ export function TransactionDetails({
     >
       <div className="mb-4 flex flex-wrap gap-2">
         <Select
+          items={TYPE_LABEL}
           value={filters.type}
           onValueChange={(v) => onChange({ type: (v as DetailType) ?? 'all' })}
         >
           <SelectTrigger size="sm" aria-label="Filter by type">
-            <SelectValue />
+            <SelectValue placeholder="All types" />
           </SelectTrigger>
           <SelectContent>
             {(Object.keys(TYPE_LABEL) as DetailType[]).map((t) => (
@@ -96,11 +108,12 @@ export function TransactionDetails({
         </Select>
 
         <Select
+          items={categoryItems}
           value={filters.category}
           onValueChange={(v) => onChange({ category: v ?? ALL })}
         >
           <SelectTrigger size="sm" aria-label="Filter by category">
-            <SelectValue />
+            <SelectValue placeholder="All categories" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All categories</SelectItem>
@@ -113,11 +126,12 @@ export function TransactionDetails({
         </Select>
 
         <Select
+          items={CARD_LABEL}
           value={filters.cardType}
           onValueChange={(v) => onChange({ cardType: (v as CardType) ?? 'all' })}
         >
           <SelectTrigger size="sm" aria-label="Filter by card type">
-            <SelectValue />
+            <SelectValue placeholder="All cards & accounts" />
           </SelectTrigger>
           <SelectContent>
             {(Object.keys(CARD_LABEL) as CardType[]).map((t) => (
@@ -129,11 +143,12 @@ export function TransactionDetails({
         </Select>
 
         <Select
+          items={accountItems}
           value={filters.account}
           onValueChange={(v) => onChange({ account: v ?? ALL })}
         >
           <SelectTrigger size="sm" aria-label="Filter by account">
-            <SelectValue />
+            <SelectValue placeholder="All accounts" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All accounts</SelectItem>
