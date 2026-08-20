@@ -64,10 +64,20 @@ export const REWARD_TAG_PRESETS = [
   'Flat Cashback',
 ] as const
 
-// Detect a Roth IRA / IRA account by its name, so we can offer the yearly
-// contribution tracker on those accounts.
-export function isIraAccount(name: string): boolean {
-  return /\b(roth|ira)\b/i.test(name)
+// Marker tag stored in an account's `rewardTags` column to flag it as a
+// Roth IRA. This is how a user opts an Investments account into the yearly
+// contribution tracker (instead of guessing from the account name).
+export const ROTH_IRA_TAG = 'roth-ira'
+
+// An account is a Roth IRA if it carries the marker tag. We still fall back to
+// the name for older accounts created before the tag existed.
+export function isIraAccount(
+  account: { name: string; rewardTags?: string | null } | string,
+): boolean {
+  if (typeof account === 'string') return /\b(roth|ira)\b/i.test(account)
+  const tags = parseTags(account.rewardTags)
+  if (tags.some((t) => t.toLowerCase() === ROTH_IRA_TAG)) return true
+  return /\b(roth|ira)\b/i.test(account.name)
 }
 
 // Known IRS Roth/Traditional IRA annual contribution limits (under age 50).

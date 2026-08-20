@@ -242,7 +242,7 @@ function EnvelopeCard({
 }) {
   const balance = Number(account.balance)
   const isCard = account.category === 'Credit Cards'
-  const isIra = isIraAccount(account.name)
+  const isIra = isIraAccount(account)
   const limit = account.creditLimit ? Number(account.creditLimit) : 0
   const usedPct = limit > 0 ? Math.min(100, (balance / limit) * 100) : 0
   const danger = usedPct >= 80
